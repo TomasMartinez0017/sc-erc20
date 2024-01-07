@@ -27,8 +27,7 @@ describe("ERC20_Maker", function () {
     });
 
     it("Should assign the initial supply of tokens to the owner", async function () {
-      const ownerBalance = await erc20Maker.balanceOf(owner.address);
-      const totalSupply = await erc20Maker.totalSupply() 
+      const ownerBalance = await erc20Maker.balanceOf(owner.address); 
       expect(await erc20Maker.totalSupply()).to.equal(ownerBalance);
     });
   });
@@ -102,5 +101,46 @@ describe("ERC20_Maker", function () {
     });
   });
 
-  // Additional tests can be added for other functionalities and edge cases.
+  describe("Transfer", function () {
+    it("Should transfer tokens successfully", async function () {
+      // Transfer 100 tokens from owner to addr1
+      const transferAmount = BigInt(100) * BigInt(10) ** BigInt(18);
+      await erc20Maker.connect(owner).transfer(addr1.address, transferAmount);
+
+      const addr1Balance = await erc20Maker.balanceOf(addr1.address);
+      expect(addr1Balance).to.equal(transferAmount);
+    });
+
+    it("Should fail when transferring more than balance", async function () {
+      const largeAmount = BigInt(2000) * BigInt(10) ** BigInt(18);
+      await expect(erc20Maker.connect(owner).transfer(addr1.address, largeAmount)).to.be.reverted;
+    });
+
+    it("Should fail when transferring to zero address", async function () {
+      const transferAmount = BigInt(100) * BigInt(10) ** BigInt(18);
+      await expect(erc20Maker.connect(owner).transfer("0x0000000000000000000000000000000000000000", transferAmount)).to.be.reverted;
+    });
+  });
+
+  describe("Transfer from Account", function () {
+    it("Should allow for transfer if allowance is sufficient", async function () {
+      // Owner approves addr1 to spend tokens
+      const allowanceAmount = BigInt(100) * BigInt(10) ** BigInt(18);
+      await erc20Maker.connect(owner).increaseAllowance(addr1.address, allowanceAmount);
+
+      // addr1 transfers tokens from owner to addr2
+      await erc20Maker.connect(addr1).transferFrom(owner.address, addr2.address, allowanceAmount);
+
+      const addr2Balance = await erc20Maker.balanceOf(addr2.address);
+      expect(addr2Balance).to.equal(allowanceAmount);
+    });
+
+    it("Should fail for transferFrom if allowance is insufficient", async function () {
+      const transferAmount = BigInt(100) * BigInt(10) ** BigInt(18);
+      const lowerAllowance = BigInt(50) * BigInt(10) ** BigInt(18);
+      await erc20Maker.connect(owner).increaseAllowance(addr1.address, lowerAllowance);
+
+      await expect(erc20Maker.connect(addr1).transferFrom(owner.address, addr2.address, transferAmount)).to.be.reverted;
+    });
+  });
 });
